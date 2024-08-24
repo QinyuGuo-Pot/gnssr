@@ -5,7 +5,7 @@ with open("README.md", "r", encoding="utf-8") as fh:
 
 setuptools.setup(
     name="gnssr",
-    version="0.0.1",
+    version="0.0.3",
     author="Qinyu Guo",
     url='https://github.com/QinyuGuo-Pot',
     author_email="qinyuguo@chd.edu.cn",
@@ -22,7 +22,8 @@ setuptools.setup(
         'scipy == 1.13.1',
         'rasterio == 1.3.10',
         'matplotlib == 3.9.2',
-        'jupyter == 1.0.0'
+        'jupyter == 1.0.0',
+        'dask == 2024.8.1'
     ],
     python_requires=">=3.6",
 )

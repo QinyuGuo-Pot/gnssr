@@ -1,6 +1,6 @@
 Metadata-Version: 2.1
 Name: gnssr
-Version: 0.0.1
+Version: 0.0.3
 Summary: GNSS-R Data Processing Package
 Home-page: https://github.com/QinyuGuo-Pot
 Author: Qinyu Guo
@@ -16,6 +16,7 @@ Requires-Dist: scipy==1.13.1
 Requires-Dist: rasterio==1.3.10
 Requires-Dist: matplotlib==3.9.2
 Requires-Dist: jupyter==1.0.0
+Requires-Dist: dask==2024.8.1
 
 # gnssr
 
