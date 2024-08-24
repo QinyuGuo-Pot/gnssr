@@ -5,9 +5,9 @@ with open("README.md", "r", encoding="utf-8") as fh:
 
 setuptools.setup(
     name="gnssr",
-    version="0.0.3",
+    version="0.0.4",
     author="Qinyu Guo",
-    url='https://github.com/QinyuGuo-Pot',
+    url='https://github.com/QinyuGuo-Pot/gnssr',
     author_email="qinyuguo@chd.edu.cn",
     description="GNSS-R Data Processing Package",
     long_description=long_description,

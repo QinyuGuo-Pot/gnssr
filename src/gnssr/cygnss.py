@@ -287,7 +287,7 @@ def filter_data_by_watermask(tif_path,df_original: pd.DataFrame) -> pd.DataFrame
     
 
 
-def grid_36km_cyg(df: pd.DataFrame, obs:str):
+def grid_36km(df: pd.DataFrame, obs:str):
     """  
     Grid and compute the mean of gnss-r observations..    
 
