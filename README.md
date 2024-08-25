@@ -1,4 +1,4 @@
-# gnssr v0.0.4
+# gnssr v0.0.5
 
 ## Introduction
 GNSS-R Data Processing Package
@@ -75,8 +75,24 @@ df_obs = cyg.extract_obs(ds, obs_list)
 # Pass in the dataframe and dataset as parameters
 df_qc = cyg.quality_control_default(df_obs,ds) # df is the dataframe returned by extract_obs()
 ```
-`quality_control_custom()` allows users to customize the quality control criteria, under development...
-
+`quality_control_custom()` allows users to customize the quality control criteria, returning a filtered dataframe. Paramters: quality control configuration file (YAML), a dataframe, and dataset `ds`. Users can tailor the YAML file parameters as needed. A template is available for download at [link](https://github.com/QinyuGuo-Pot/gnssr).
+```yaml
+quality_flags:  
+  - s_band_powered_up: 0 
+  - large_sc_attitude_err: 0  
+  - black_body_ddm: 0
+  - ddm_is_test_pattern: 0 
+  - direct_signal_in_ddm: 0
+  - low_confidence_gps_eirp_estimate: 0
+  - sp_over_land: 1
+sp_inc_angle: '<= 65'  
+sp_rx_gain: '>= 0' 
+ddm_snr: '>= 2'  
+brcs_ddm_peak_bin_delay_row: '>= 4,<= 15' 
+```
+```python
+df_qc_custom = cyg.quality_control_custom('quality_control_config.yaml',df_obs,ds)
+```
 
 ### Surface Reflectivity Calculation
 `cal_sr()` calculates surface reflectivity in dB form, returns a dataframe. Parameters: dataframe, dataset, boolean value (whether to perform quality control) ; the dataframe can be the dataframe returned by extract_obs() or an empty dataframe, in which case the function will return`'sr'`,`'sp_lat'` and`'sp_lon'`variables. If True is passed, the function will use the default criteria for quality control.
@@ -113,7 +129,10 @@ Other gridding algorithms are under development...
 
 ## Version History
 v0.0.4
- - Add documentation
+ - Add documentation 
+
+v0.0.5
+ - Add user-defined quality control function `quality_control_custom()`
 
 ## Concat
  - Email：<qinyuguo@chd.edu.cn>
@@ -192,8 +211,24 @@ direct_signal_in_ddm, low_confidence_gps_eirp_estimate, and **sp_over_land**
 # 传入参数：dataframe, 数据集ds
 df_qc = cyg.quality_control_default(df_obs,ds) # df为extract_obs()返回的dataframe
 ```
-`quality_control_custom()`允许用户自定义质量控制准则，正在开发中...
-
+`quality_control_custom()`允许用户自定义质量控制准则，返回经过质量控制的dataframe；传入参数：质量控制配置文件(yaml格式)，dataframe, 数据集ds；配置文件格式如下，用户可自定义yaml文件中的各项参数，可下载[模板](https://github.com/QinyuGuo-Pot/gnssr)
+```yaml
+quality_flags:  
+  - s_band_powered_up: 0 
+  - large_sc_attitude_err: 0  
+  - black_body_ddm: 0
+  - ddm_is_test_pattern: 0 
+  - direct_signal_in_ddm: 0
+  - low_confidence_gps_eirp_estimate: 0
+  - sp_over_land: 1
+sp_inc_angle: '<= 65'  
+sp_rx_gain: '>= 0' 
+ddm_snr: '>= 2'  
+brcs_ddm_peak_bin_delay_row: '>= 4,<= 15' 
+```
+```python
+df_qc_custom = cyg.quality_control_custom('quality_control_config.yaml',df_obs,ds)
+```
 ### 地表反射率计算
 `cal_sr()`计算dB形式的地表反射率，返回dataframe，传入参数：dataframe, 数据集ds，布尔值（是否要进行质量控制）；传入的dataframe可以是`extract_obs()`返回的dataframe，也可以是空的dataframe，传入空的dataframe最后会返回'sr','sp_lat'和'sp_lon'三个变量；如果传入True，则会采用默认准则进行质量控制
 ```python
@@ -226,7 +261,10 @@ grid_obs = cyg.grid_36km(df_no_water,'sr')
 
 ## 版本历史
 v0.0.4
- - 添加说明文档
+ - 添加说明文档 
+
+v0.0.5
+ - 添加用户自定义质量控制函数 `quality_control_custom()`
 
 ## 联系方式
  - 邮箱：<qinyuguo@chd.edu.cn>

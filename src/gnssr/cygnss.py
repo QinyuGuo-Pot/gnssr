@@ -8,6 +8,7 @@ import math
 from scipy import stats
 import warnings
 import rasterio
+import yaml
 
 
 warnings.filterwarnings("ignore")
@@ -108,13 +109,13 @@ def extract_obs(ds: xr.Dataset, obs_list: list) -> pd.DataFrame:
     
 
 
-def check_binary_land(quality_flag):  
+def _check_binary_land(quality_flag):  
     
     binary_str = format(int(quality_flag), '031b')  
     
     specific_bits = binary_str[-2] + binary_str[-4] + binary_str[-5] + binary_str[-8] + binary_str[-11] + binary_str[-16] + binary_str[-17]  
     
-    return specific_bits != '0000100'
+    return specific_bits == '0000100'
 
 
 
@@ -150,7 +151,7 @@ def quality_control_default(df_original: pd.DataFrame,ds: xr.Dataset) -> pd.Data
 
     df_filtered = df[  
         
-        df.apply(lambda row: not check_binary_land(row['quality_flags']), axis=1) &  
+        df.apply(lambda row: _check_binary_land(row['quality_flags']), axis=1) &  
         
         (df['sp_inc_angle'] <= 65) &  
         
@@ -168,8 +169,78 @@ def quality_control_default(df_original: pd.DataFrame,ds: xr.Dataset) -> pd.Data
     return df_final 
 
 
-def quality_control_custom():
-    pass
+def _check_quality_flags(quality_flags,bit_values_str,bit_list):  
+      
+    binary_str = format(int(quality_flags), '031b')  
+     
+    qf_str = ''.join(binary_str[index] for index in bit_list)  
+      
+    return qf_str == bit_values_str 
+
+
+def quality_control_custom(config_file: str,df_original: pd.DataFrame,ds: xr.Dataset) -> pd.DataFrame:
+
+    df = df_original.copy()
+
+    if df.empty:  
+        raise ValueError("Your DataFrame is empty")
+
+    with open(config_file, 'r') as file:  
+        
+        config = yaml.safe_load(file)
+
+        required_columns = list(config.keys())[:-1]  
+        missing_columns = set(required_columns) - set(df.columns)  
+       
+
+        if missing_columns:  
+                
+            for col in missing_columns:  
+                if col in ds:  
+                    df[col] = ds[col].values.flatten() 
+            
+                else:  
+                    raise ValueError(f"Dataset {ds} does not contain the variable: {col}")  
+                
+
+        qc_list = config['CYGNSS L1 V3.1 quality_flags lookup table'] 
+        qc_dict = {item['name']: -int(item['bit']) for item in qc_list} # CYGNSS L1 V3.1 质量标签和对应的索引
+     
+
+        quality_flags = config['quality_flags'] #用户自定义的质量标签
+        bit_values_list = [value for dict_ in quality_flags for value in dict_.values()] #用户自定义的质量标签对应的值列表
+        bit_values_str = ''.join([str(value) for value in bit_values_list]) #用户自定义的质量标签对应的值列表字符串
+        
+
+        bit_list = [] #用户自定义的质量标签对应的索引
+        #根据用户自定的质量标签获取对应的索引
+        for flag in quality_flags:
+        
+            keys_str = ''.join(flag.keys())
+            
+            if keys_str in qc_dict:
+            
+                bit_list.append(qc_dict[keys_str])
+            else:
+                raise ValueError(f"The quality flag {keys_str} is not in the CYGNSS L1 V3.1 quality_flags lookup table")
+
+           
+
+        df['quality_check'] = df.apply(lambda row: _check_quality_flags(row['quality_flags'],bit_values_str,bit_list), axis=1)
+        df_filtered_middle = df[df['quality_check']]
+        
+        
+        empirical_qc = [(col, op) for col, op in config.items() if col not in ['CYGNSS L1 V3.1 quality_flags lookup table', 'quality_flags']]
+        query_str = ' & '.join([  
+            f"({col} {op.split(',')[0].strip()})" if ',' not in op else  
+            f"(({col} {op.split(',')[0].strip()}) & ({col} {op.split(',')[1].strip()}))"  
+            for col, op in empirical_qc  
+        ])  
+
+
+        df_filtered = df_filtered_middle.query(query_str)[df.columns]
+
+        return df_filtered
 
 
 

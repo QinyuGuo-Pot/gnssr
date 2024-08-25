@@ -1,6 +1,6 @@
 Metadata-Version: 2.1
 Name: gnssr
-Version: 0.0.4
+Version: 0.0.5
 Summary: GNSS-R Data Processing Package
 Home-page: https://github.com/QinyuGuo-Pot/gnssr
 Author: Qinyu Guo
@@ -18,7 +18,7 @@ Requires-Dist: matplotlib==3.9.2
 Requires-Dist: jupyter==1.0.0
 Requires-Dist: dask==2024.8.1
 
-# gnssr v0.0.4
+# gnssr v0.0.5
 
 ## Introduction
 GNSS-R Data Processing Package
@@ -95,8 +95,24 @@ df_obs = cyg.extract_obs(ds, obs_list)
 # Pass in the dataframe and dataset as parameters
 df_qc = cyg.quality_control_default(df_obs,ds) # df is the dataframe returned by extract_obs()
 ```
-`quality_control_custom()` allows users to customize the quality control criteria, under development...
-
+`quality_control_custom()` allows users to customize the quality control criteria, returning a filtered dataframe. Paramters: quality control configuration file (YAML), a dataframe, and dataset `ds`. Users can tailor the YAML file parameters as needed. A template is available for download at link.
+```yaml
+quality_flags:  
+  - s_band_powered_up: 0 
+  - large_sc_attitude_err: 0  
+  - black_body_ddm: 0
+  - ddm_is_test_pattern: 0 
+  - direct_signal_in_ddm: 0
+  - low_confidence_gps_eirp_estimate: 0
+  - sp_over_land: 1
+sp_inc_angle: '<= 65'  
+sp_rx_gain: '>= 0' 
+ddm_snr: '>= 2'  
+brcs_ddm_peak_bin_delay_row: '>= 4,<= 15' 
+```
+```python
+df_qc_custom = cyg.quality_control_custom('quality_control_config.yaml',df_obs,ds)
+```
 
 ### Surface Reflectivity Calculation
 `cal_sr()` calculates surface reflectivity in dB form, returns a dataframe. Parameters: dataframe, dataset, boolean value (whether to perform quality control) ; the dataframe can be the dataframe returned by extract_obs() or an empty dataframe, in which case the function will return`'sr'`,`'sp_lat'` and`'sp_lon'`variables. If True is passed, the function will use the default criteria for quality control.
@@ -134,6 +150,8 @@ Other gridding algorithms are under development...
 ## Version History
 v0.0.4
  - Add documentation
+v0.0.5
+ - Add user-defined quality control function `quality_control_custom()`
 
 ## Concat
  - Email：<qinyuguo@chd.edu.cn>
@@ -142,7 +160,7 @@ v0.0.4
 ## 介绍
 GNSS-R 数据处理包
 
-GNSS-R 数据处理包提供了一系列用于处理和分析全球导航卫星系统反射ometry (GNSS-R) 数据的工具和函数。GNSS-R 是一种新型的遥感技术，利用导航卫星（如 GPS、GLONASS、Galileo、BDS 等）发出的信号，通过地球表面或其他自然散射，观测地球的表面和大气。
+gnssr提供了一系列用于处理和分析全球导航卫星系统反射(GNSS-R) 数据的工具和函数。GNSS-R 是一种新型的遥感技术，利用导航卫星（如 GPS、GLONASS、Galileo、BDS 等）的反射信号进行对地观测。
 
 该包旨在为 GNSS-R 数据处理提供一个全面的工具，从原始信号仿真和处理，到高级数据分析和可视化。它包含了以下算法：
 
@@ -212,8 +230,24 @@ direct_signal_in_ddm, low_confidence_gps_eirp_estimate, and **sp_over_land**
 # 传入参数：dataframe, 数据集ds
 df_qc = cyg.quality_control_default(df_obs,ds) # df为extract_obs()返回的dataframe
 ```
-`quality_control_custom()`允许用户自定义质量控制准则，正在开发中...
-
+`quality_control_custom()`允许用户自定义质量控制准则，返回经过质量控制的dataframe；传入参数：质量控制配置文件(yaml格式)，dataframe, 数据集ds；配置文件格式如下，用户可自定义yaml文件中的各项参数，可下载[模板]('https://github.com/QinyuGuo-Pot/gnssr')
+```yaml
+quality_flags:  
+  - s_band_powered_up: 0 
+  - large_sc_attitude_err: 0  
+  - black_body_ddm: 0
+  - ddm_is_test_pattern: 0 
+  - direct_signal_in_ddm: 0
+  - low_confidence_gps_eirp_estimate: 0
+  - sp_over_land: 1
+sp_inc_angle: '<= 65'  
+sp_rx_gain: '>= 0' 
+ddm_snr: '>= 2'  
+brcs_ddm_peak_bin_delay_row: '>= 4,<= 15' 
+```
+```python
+df_qc_custom = cyg.quality_control_custom('quality_control_config.yaml',df_obs,ds)
+```
 ### 地表反射率计算
 `cal_sr()`计算dB形式的地表反射率，返回dataframe，传入参数：dataframe, 数据集ds，布尔值（是否要进行质量控制）；传入的dataframe可以是`extract_obs()`返回的dataframe，也可以是空的dataframe，传入空的dataframe最后会返回'sr','sp_lat'和'sp_lon'三个变量；如果传入True，则会采用默认准则进行质量控制
 ```python
@@ -247,6 +281,8 @@ grid_obs = cyg.grid_36km(df_no_water,'sr')
 ## 版本历史
 v0.0.4
  - 添加说明文档
+v0.0.5
+ - 添加用户自定义质量控制函数 `quality_control_custom()`
 
 ## 联系方式
  - 邮箱：<qinyuguo@chd.edu.cn>
