@@ -9,6 +9,8 @@ from scipy import stats
 import warnings
 import rasterio
 import yaml
+import geopandas as gpd
+from shapely.geometry import Point  
 
 
 warnings.filterwarnings("ignore")
@@ -101,11 +103,11 @@ def extract_obs(ds: xr.Dataset, obs_list: list) -> pd.DataFrame:
         
         else:  
             print(f"Warning: Variable '{obs}' not found in the Dataset.")  
+    
+    if 'sp_lon' in df.columns:  
+        df.loc[df['sp_lon'] > 180, 'sp_lon'] -= 360  
 
-    if df.empty:  
-        print("No valid data extracted from the Dataset.")  
-
-    return df 
+    return df  
     
 
 
@@ -238,7 +240,7 @@ def quality_control_custom(config_file: str,df_original: pd.DataFrame,ds: xr.Dat
         ])  
 
 
-        df_filtered = df_filtered_middle.query(query_str)[df.columns]
+        df_filtered = df_filtered_middle.query(query_str)[df_original.columns]
 
         return df_filtered
 
@@ -325,8 +327,30 @@ def filter_data_by_lonlat(df_original: pd.DataFrame, region: list) -> pd.DataFra
 
 
 
-def filter_data_by_shp(df: pd.DataFrame, start_date: str, end_date: str) -> pd.DataFrame:  
-    pass
+def filter_data_by_vector(df: pd.DataFrame, vector_path: str) -> pd.DataFrame: 
+
+    if 'sp_lon' not in df.columns or 'sp_lat' not in df.columns:  
+        raise ValueError("DataFrame must contain 'sp_lon' and 'sp_lat' columns.")  
+      
+    if not os.path.exists(vector_path):  
+        raise FileNotFoundError(f"The file {vector_path} does not exist.")  
+       
+    try:  
+        gdf_shp = gpd.read_file(vector_path)  
+    except Exception as e:  
+        raise ValueError(f"Failed to read the file {vector_path}: {e}")   
+     
+
+    geometry = [Point(xy) for xy in zip(df['sp_lon'], df['sp_lat'])]  
+    gdf_points = gpd.GeoDataFrame(df, geometry=geometry)  
+      
+    boundary_union = gdf_shp.unary_union  
+    
+    is_within = gdf_points.within(boundary_union)  
+
+    result = df[is_within]  
+      
+    return result 
 
 
 
@@ -358,43 +382,78 @@ def filter_data_by_watermask(tif_path,df_original: pd.DataFrame) -> pd.DataFrame
     
 
 
-def grid_36km(df: pd.DataFrame, obs:str):
+def grid_obs(df: pd.DataFrame, lats: np.ndarray, lons: np.ndarray, obs_list: list):  
     """  
-    Grid and compute the mean of gnss-r observations..    
-
-    Notes:  
-    - It is important that the `lats` and `lons` arrays are sorted in ascending order,  
-    as `binned_statistic_2d` expects the bin edges to be in increasing order.  
+    Grid and compute the mean of gnss-r observations for multiple variables.  
+  
+    Parameters:  
+    - df: Pandas DataFrame containing the observations.  
+    - lats: 1D numpy array of latitude bin edges.  
+    - lons: 1D numpy array of longitude bin edges.  
+    - obs_list: List of column names in `df` to grid and compute means for.  
+  
+    Returns:  
+    - Dictionary containing the gridded and meaned observations for each variable in `obs_list`.   
     """  
-        
-    lats_filepath = 'EASE2_M36km.lats.964x406x1.double'  
-    lons_filepath = 'EASE2_M36km.lons.964x406x1.double'  
+      
+    if not (lats.ndim == 1 and lons.ndim == 1 and np.all(np.diff(lats) > 0) and np.all(np.diff(lons) > 0)):  
+        raise ValueError("Both `lats` and `lons` must be 1D arrays and sorted in ascending order.")  
+    
+    print('Please check your input data, make sure the second parameter is latitude boundaries and the third parameter is longitude boundaries.')
 
-
-    for filepath in [lats_filepath, lons_filepath]:  
-        if not os.path.exists(filepath):  
-            raise FileNotFoundError(f"EASE-GRID file {filepath} does not exist in the current working path. \n"  
-                                    f"You can download it from [https://code.mpimet.mpg.de/boards/1/topics/9593?r=9596#message-9596].")  
-
-    required_columns = ['sp_lat', 'sp_lon', obs]  
+    required_columns = ['sp_lat', 'sp_lon'] + obs_list  
     missing_columns = [col for col in required_columns if col not in df.columns]  
     if missing_columns:  
         raise ValueError(f"The DataFrame is missing the following required columns: {', '.join(missing_columns)}")  
+  
+    gridded_results = {}  
+  
+    for obs in obs_list:  
+        statistic, _, _, _ = stats.binned_statistic_2d(  
+            df['sp_lat'], df['sp_lon'], values=df[obs], statistic='mean',  
+            bins=[lats, lons]  
+        )  
+        gridded_results[obs] = statistic   
+  
+    return gridded_results
 
-    lats = np.fromfile(lats_filepath, dtype=np.float64).reshape((406, 964))  
-    lons = np.fromfile(lons_filepath, dtype=np.float64).reshape((406, 964))  
 
-    statistic, xedges, yedges, binnumber = stats.binned_statistic_2d(
-    df['sp_lat'], df['sp_lon'], values=df[obs], statistic='mean', 
-    bins=[lats[:,0][::-1], lons[0,:]])
+
+
+# def grid_36km(df: pd.DataFrame, obs:str):
+#     """  
+#     Grid and compute the mean of gnss-r observations..    
+
+#     Notes:  
+#     - It is important that the `lats` and `lons` arrays are sorted in ascending order,  
+#     as `binned_statistic_2d` expects the bin edges to be in increasing order.  
+#     """  
+        
+#     lats_filepath = 'EASE2_M36km.lats.964x406x1.double'  
+#     lons_filepath = 'EASE2_M36km.lons.964x406x1.double'  
+
+
+#     for filepath in [lats_filepath, lons_filepath]:  
+#         if not os.path.exists(filepath):  
+#             raise FileNotFoundError(f"EASE-GRID file {filepath} does not exist in the current working path. \n"  
+#                                     f"You can download it from [https://code.mpimet.mpg.de/boards/1/topics/9593?r=9596#message-9596].")  
+
+#     required_columns = ['sp_lat', 'sp_lon', obs]  
+#     missing_columns = [col for col in required_columns if col not in df.columns]  
+#     if missing_columns:  
+#         raise ValueError(f"The DataFrame is missing the following required columns: {', '.join(missing_columns)}")  
+
+#     lats = np.fromfile(lats_filepath, dtype=np.float64).reshape((406, 964))  
+#     lons = np.fromfile(lons_filepath, dtype=np.float64).reshape((406, 964))  
+
+#     statistic, xedges, yedges, binnumber = stats.binned_statistic_2d(
+#     df['sp_lat'], df['sp_lon'], values=df[obs], statistic='mean', 
+#     bins=[lats[:,0][::-1], lons[0,:]])
     
-    grid_obs = np.flipud(statistic)
+#     grid_obs = np.flipud(statistic)
 
-    return grid_obs
+#     return grid_obs
 
-
-def plot_obs(df: pd.DataFrame):
-    pass
 
 
 

@@ -1,4 +1,4 @@
-# gnssr v0.0.5
+# gnssr v0.0.6
 
 ## Introduction
 GNSS-R Data Processing Package
@@ -75,7 +75,7 @@ df_obs = cyg.extract_obs(ds, obs_list)
 # Pass in the dataframe and dataset as parameters
 df_qc = cyg.quality_control_default(df_obs,ds) # df is the dataframe returned by extract_obs()
 ```
-`quality_control_custom()` allows users to customize the quality control criteria, returning a filtered dataframe. Paramters: quality control configuration file (YAML), a dataframe, and dataset `ds`. Users can tailor the YAML file parameters as needed. A template is available for download at [link](https://github.com/QinyuGuo-Pot/gnssr).
+`quality_control_custom()` allows users to customize the quality control criteria, returning a filtered dataframe. Paramters: quality control configuration file (YAML), a dataframe, and dataset `ds`. Users can tailor the YAML file parameters as needed. Use template  at [link](https://github.com/QinyuGuo-Pot/gnssr/tree/master/test).
 ```yaml
 quality_flags:  
   - s_band_powered_up: 0 
@@ -109,7 +109,11 @@ df_sr = cyg.cal_sr(df,ds,True)
 lonlat_range = [lon_min,lon_max,lat_min,lat_max]
 df_region = cyg.filter_data_by_lonlat(df,lonlat_range)
 ```
-`filter_data_by_shp()` filters data based on shp file, under development...
+`filter_data_by_vector()` filters data based on a vector file and returns a dataframe. The input parameters include: dataframe, and the path to the vector file. Supported vector file formats include `.shp`, `.shx`, `.dbf`, `.json`.
+```python
+shp_file = '~/path/shp_file.shp'
+df_region = cyg.filter_data_by_vector(df,shp_file)
+```
 
 
 ### Exclude GNSS-R Observations in Open Water
@@ -121,11 +125,20 @@ df_no_water = cyg.filter_data_by_watermask(gsw_file,df)
 
 
 ### Grid Data
-`grid_36km()` grids GNSS-R observations using EASE-Grid 36km grid file, returns a 2D numpy.ndarray. Parameters: dataframe, variable (string) ; the dataframe must contain`'sp_lat'` and`'sp_lon'` and the variable to be gridded ; the algorithm for gridding is to split GNSS-R observation coordinates (`'sp_lat'`,`'sp_lon'`) into 36km grid cells, and calculate the mean value of the variable within each cell. The current working directory must have the EASE-Grid 36km grid file, [download link](https://code.mpimet.mpg.de/boards/1/topics/9593?r=9596#message-9596)
+`grid_obs()` grids the GNSS-R observations and returns a dictionary containing the gridded results of each observation variable. The input parameters include: dataframe, latitude grid, longitude grid, and a list of variables. The dataframe must contain 'sp_lat' and 'sp_lon' along with the variables to be gridded. The input latitude and longitude grids are required to be one-dimensional, increasing arrays. The gridding algorithm involves partitioning the GNSS-R observation coordinates ('sp_lat', 'sp_lon') and calculating the mean values. You can download the EASE-Grid 36km grid files from the [link](https://github.com/QinyuGuo-Pot/gnssr/tree/master/test) here, or generate grid files using the ease-grid library.
 ```python
-grid_obs = cyg.grid_36km(df_no_water,'sr')
+from ease_grid import EASE2_grid
+from matplotlib import pyplot as plt
+
+egrid = EASE2_grid(36000)
+glat = egrid.latdim[::-1]
+glon = egrid.londim
+
+grid_obs = cyg.grid_obs(df,glat,glon,['sr','brcs','ddm_snr'])
+sr_array = grid_obs['sr']
+
+plt.pcolormesh(sr_array)
 ```
-Other gridding algorithms are under development...
 
 ## Version History
 v0.0.4
@@ -133,6 +146,13 @@ v0.0.4
 
 v0.0.5
  - Add user-defined quality control function `quality_control_custom()`
+
+ v0.0.6
+- Modified `quality_control_custom()`
+- Modified `extract_obs()`
+- Modified `'grid_obs()`
+- Add `filter_data_by_vector()`
+
 
 ## Concat
  - Email：<qinyuguo@chd.edu.cn>
@@ -211,7 +231,7 @@ direct_signal_in_ddm, low_confidence_gps_eirp_estimate, and **sp_over_land**
 # 传入参数：dataframe, 数据集ds
 df_qc = cyg.quality_control_default(df_obs,ds) # df为extract_obs()返回的dataframe
 ```
-`quality_control_custom()`允许用户自定义质量控制准则，返回经过质量控制的dataframe；传入参数：质量控制配置文件(yaml格式)，dataframe, 数据集ds；配置文件格式如下，用户可自定义yaml文件中的各项参数，可下载[模板](https://github.com/QinyuGuo-Pot/gnssr)
+`quality_control_custom()`允许用户自定义质量控制准则，返回经过质量控制的dataframe；传入参数：质量控制配置文件(yaml格式)，dataframe, 数据集ds；配置文件格式如下，用户可自定义yaml文件中的各项参数，请使用[模板](https://github.com/QinyuGuo-Pot/gnssr/tree/master/test)
 ```yaml
 quality_flags:  
   - s_band_powered_up: 0 
@@ -243,7 +263,11 @@ df_sr = cyg.cal_sr(df,ds,True)
 lonlat_range = [lon_min,lon_max,lat_min,lat_max]
 df_region = cyg.filter_data_by_lonlat(df,lonlat_range)
 ```
-`filter_data_by_shp()`根据shp文件筛选数据，正在开发中...
+`filter_data_by_vector()`根据矢量文件筛选数据，返回dataframe，传入参数：dataframe, 矢量文件路径；支持的矢量文件格式有`.shp`, `.shx`, `.dbf`, `.json`
+```python
+shp_file = '~/path/shp_file.shp'
+df_region = cyg.filter_data_by_vector(df,shp_file)
+```
 
 ### 剔除开放水域内的观测量
 `filter_data_by_watermask()`剔除开放水域内的GNSS-R观测量，返回dataframe，传入参数：GSW数据文件路径，dataframe；dataframe中需包含'sp_lat'和'sp_lon'变量；水体剔除的算法是将GNSS-R观测量坐标（'sp_lat','sp_lon'）与GSW数据文件中水体的坐标进行匹配，剔除落在水体内的观测量；目前算法仅支持GSW数据的季节性产品
@@ -252,12 +276,22 @@ gsw_file = '~/path/gsw_file.tif'
 df_no_water = cyg.filter_data_by_watermask(gsw_file,df)
 ```
 
-### 网格化
-`grid_36km()`采用EASE-Grid 36km的格网文件对GNSS-R观测量进行网格化，返回numpy.ndarray，传入参数：dataframe, 变量（字符串）；dataframe中需包含'sp_lat'和'sp_lon'以及待网格化的变量；网格化的算法是将GNSS-R观测量坐标（'sp_lat','sp_lon'）进行分割并计算均值；当前工作路径下需要有EASE-Grid 36km的格网文件，[下载地址](https://code.mpimet.mpg.de/boards/1/topics/9593?r=9596#message-9596)
+### 格网化
+`grid_obs()`对GNSS-R观测量进行格网化，返回包含各个观测量格网化结果的字典，传入参数：dataframe，纬度格网，经度格网，变量列表；dataframe中需包含`'sp_lat'`和`'sp_lon'`以及待格网化的变量，传入的纬度格网和经度格网需为一维递增数组；格网化的算法是将GNSS-R观测量坐标（`'sp_lat'`,`'sp_lon'`）进行分割并计算均值；可从链接[下载](https://github.com/QinyuGuo-Pot/gnssr/tree/master/test)EASE-Grid 36km格网文件，或使用ease-grid库生成格网文件
 ```python
-grid_obs = cyg.grid_36km(df_no_water,'sr')
+from ease_grid import EASE2_grid
+from matplotlib import pyplot as plt
+
+egrid = EASE2_grid(36000)
+glat = egrid.latdim[::-1]
+glon = egrid.londim
+
+grid_obs = cyg.grid_obs(df,glat,glon,['sr','brcs','ddm_snr'])
+sr_array = grid_obs['sr']
+
+plt.pcolormesh(sr_array)
 ```
-其他分辨率的网格化算法正在开发中...
+
 
 ## 版本历史
 v0.0.4
@@ -265,6 +299,12 @@ v0.0.4
 
 v0.0.5
  - 添加用户自定义质量控制函数 `quality_control_custom()`
+
+v0.0.6
+ - 修改`quality_control_custom()`
+ - 修改`extract_obs()`
+ - 修改`grid_obs()`
+ - 添加`filter_data_by_vector()`
 
 ## 联系方式
  - 邮箱：<qinyuguo@chd.edu.cn>
